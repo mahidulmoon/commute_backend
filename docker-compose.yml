@@ -1,0 +1,62 @@
+version: '3.9'
+
+services:
+  auth_service:
+    build: ./auth_service
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./auth_service:/app
+    env_file:
+      - ./auth_service/.env
+    networks:
+      - app-network
+
+  worker:
+    build: ./queue_service
+    container_name: rabbitmq_worker
+    working_dir: /app
+    command: python -m app.worker
+    volumes:
+      - ./queue_service:/app
+      - ./logs:/app/logs
+    environment:
+      - RABBITMQ_URL=amqp://user:password@192.168.0.100:5672/
+    
+  
+  # vidlist_ai_api_service:
+  #   build: ./api_service
+  #   ports:
+  #     - "8082:8082"
+  #   volumes:
+  #     - ./api_service:/app
+  #   env_file:
+  #     - ./api_service/.env
+  #   depends_on:
+  #     - db_api
+  #   networks:
+  #     - app-network
+
+  # db_auth:
+  #   image: postgres:15
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: vidlist_ai
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: 1234
+  #   volumes:
+  #     - pgdata_auth:/var/lib/postgresql/data
+  #   networks:
+  #     - app-network
+
+
+volumes:
+  pgdata_auth:
+  pgdata_api:
+  esdata:
+
+networks:
+  app-network:
+    driver: bridge
+

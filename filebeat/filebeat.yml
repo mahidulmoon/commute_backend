@@ -1,0 +1,24 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/fastapi/*.log    # Path inside the Filebeat container (or host mount)
+    - /var/log/fastapi/auth/*.log
+    - /var/log/fastapi/post/*.log
+    - /var/log/fastapi/api/*.log
+
+# Configure Logstash output
+# output.logstash:
+#   hosts: ["logstash:5044"]
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+
+# Optional: If running Filebeat in Docker, set this to false to avoid system logs
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat.log
+  keepfiles: 7
+  permissions: 0644
