@@ -15,6 +15,8 @@ import aiosmtplib
 from random import randint
 from app.database import get_db_global
 from fastapi.encoders import jsonable_encoder
+from app.models.usergroupmembership import UserGroupMembership
+from app.models.groups import Group
 
 
 SECRET_KEY= os.getenv("SECRET_KEY")
@@ -130,6 +132,18 @@ def login(user_input: user_auth_schema.LoginUserInput,db: Session = Depends(get_
             data={"sub": db_user.email, "user_id" : db_user.user_id},  # sub = subject (email)
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
+        group_name = (
+            db.query(Group.name)
+            .join(
+                UserGroupMembership,
+                UserGroupMembership.group_id == Group.id
+            )
+            .filter(
+                UserGroupMembership.user_id == db_user.user_id
+            )
+            .scalar()
+        )
+
         return_json = {
             "access_token" : access_token,
             "token_type" : "bearer",
@@ -140,7 +154,8 @@ def login(user_input: user_auth_schema.LoginUserInput,db: Session = Depends(get_
                 "username" : db_user.username,
                 "id" : db_user.user_id,
                 "type" : db_user.type,
-                "language" : db_user.language
+                "language" : db_user.language,
+                "group" : group_name
             }
         }
 

@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, T
 from sqlalchemy.sql import func
 from app.database import Base
 from sqlalchemy import UniqueConstraint
+from app.models.wo_user import User
 
 class UserGroupMembership(Base):
     __tablename__ = "user_group_memberships"
