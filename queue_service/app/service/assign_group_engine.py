@@ -1,17 +1,70 @@
 from sqlalchemy.orm import Session
-from app.logging_config import setup_logging, logger
+
 from app.models.groups import Group
 from app.models.grouprule import GroupRule
 from app.models.usergroupmembership import UserGroupMembership
 
+
+# ============================================================
+# Fields that participate in automatic group allocation
+# ============================================================
+# Add/remove fields here whenever the business requirement changes.
+#
+# Example:
+#     "company",
+#     "position",
+#     "hobbies",
+#
+# can simply be added later.
+# ============================================================
+
+GROUPING_FIELDS = [
+    "local_area",
+    "current_city",
+    "interest",
+    "university",
+    "course",
+    "level",
+]
+
+
+# ============================================================
+# Helpers
+# ============================================================
+
 def normalize(value):
+    """
+    Normalize profile/rule values before comparison.
+
+    Example:
+        " Dhaka " -> "dhaka"
+        None      -> ""
+    """
     if value is None:
         return ""
 
     return str(value).strip().lower()
 
 
-def evaluate_rule(profile: dict, rule):
+def get_grouping_data(profile: dict) -> dict:
+    """
+    Extract only the fields that are configured for grouping.
+
+    Empty values are ignored.
+    """
+
+    return {
+        field: normalize(profile.get(field))
+        for field in GROUPING_FIELDS
+        if normalize(profile.get(field))
+    }
+
+
+def evaluate_rule(profile: dict, rule: GroupRule) -> bool:
+    """
+    Check whether a profile satisfies a group rule.
+    """
+
     profile_value = normalize(profile.get(rule.field))
     expected_value = normalize(rule.value)
 
@@ -32,14 +85,88 @@ def evaluate_rule(profile: dict, rule):
     )
 
 
+def create_group_name(grouping_data: dict) -> str:
+    """
+    Generate a readable group name from the profile data.
+
+    Example:
+
+        {
+            "local_area": "block d",
+            "current_city": "dhaka",
+            "interest": "cricket",
+            "university": "daffodil international university",
+            "course": "software engineering",
+            "level": "undergrad"
+        }
+
+    becomes something like:
+
+        Block D - Dhaka - Cricket Community
+    """
+
+    name_parts = []
+
+    # Only use the most useful fields for the human-readable name.
+    # All configured fields can still participate in the rules.
+    name_fields = [
+        "local_area",
+        "current_city",
+        "interest",
+        "course",
+    ]
+
+    for field in name_fields:
+        value = grouping_data.get(field)
+
+        if value:
+            name_parts.append(value.title())
+
+    if name_parts:
+        return " - ".join(name_parts) + " Community"
+
+    return "General Community"
+
+
+# ============================================================
+# Main allocation function
+# ============================================================
+
 def allocate_user_to_groups(
     db: Session,
     user_id: int,
     profile: dict,
 ):
-    # ---------------------------------------------------------
-    # 1. Find all active groups
-    # ---------------------------------------------------------
+    """
+    Automatically allocate a user to matching groups.
+
+    Logic:
+
+    1. Extract configured grouping fields.
+    2. Check all active groups.
+    3. Match user's profile against group rules.
+    4. Assign user to every matching group.
+    5. If nothing matches:
+         - create a new group
+         - create rules based on profile
+         - assign user to the new group
+    """
+
+    # --------------------------------------------------------
+    # 1. Extract only fields configured for grouping
+    # --------------------------------------------------------
+
+    grouping_data = get_grouping_data(profile)
+
+    if not grouping_data:
+        raise ValueError(
+            "No valid grouping information found in profile."
+        )
+
+    # --------------------------------------------------------
+    # 2. Find all active groups
+    # --------------------------------------------------------
+
     groups = (
         db.query(Group)
         .filter(Group.is_active.is_(True))
@@ -48,9 +175,10 @@ def allocate_user_to_groups(
 
     matched_groups = []
 
-    # ---------------------------------------------------------
-    # 2. Check which groups match this user's profile
-    # ---------------------------------------------------------
+    # --------------------------------------------------------
+    # 3. Check every group
+    # --------------------------------------------------------
+
     for group in groups:
 
         rules = (
@@ -62,20 +190,37 @@ def allocate_user_to_groups(
             .all()
         )
 
-        # Group without rules cannot be automatically matched
+        # A group without rules cannot be automatically matched.
         if not rules:
             continue
 
-        # All rules of the group must match
+        # ----------------------------------------------------
+        # Only consider rules for configured grouping fields.
+        # ----------------------------------------------------
+
+        relevant_rules = [
+            rule
+            for rule in rules
+            if rule.field in GROUPING_FIELDS
+        ]
+
+        if not relevant_rules:
+            continue
+
+        # ----------------------------------------------------
+        # Every rule must match
+        # ----------------------------------------------------
+
         if all(
             evaluate_rule(profile, rule)
-            for rule in rules
+            for rule in relevant_rules
         ):
             matched_groups.append(group)
 
-    # ---------------------------------------------------------
-    # 3. If groups matched, assign user to them
-    # ---------------------------------------------------------
+    # --------------------------------------------------------
+    # 4. Assign user to existing matching groups
+    # --------------------------------------------------------
+
     if matched_groups:
 
         for group in matched_groups:
@@ -104,94 +249,68 @@ def allocate_user_to_groups(
 
         return matched_groups
 
-    # ---------------------------------------------------------
-    # 4. No matching group found
-    # ---------------------------------------------------------
+    # ========================================================
+    # 5. NO MATCHING GROUP
+    # ========================================================
 
-    # Pick meaningful information from profile
-    city = normalize(profile.get("current_city"))
-    country = normalize(profile.get("current_country_name"))
-    interest = normalize(profile.get("interest"))
-    course = normalize(profile.get("course"))
-    level = normalize(profile.get("level"))
-    position = normalize(profile.get("position"))
+    group_name = create_group_name(grouping_data)
 
-    # ---------------------------------------------------------
-    # 5. Generate a group name based on available data
-    # ---------------------------------------------------------
-
-    if city and interest:
-        group_name = (
-            f"{city.title()} - "
-            f"{interest.title()} Community"
-        )
-
-    elif city and course:
-        group_name = (
-            f"{city.title()} - "
-            f"{course.title()} Community"
-        )
-
-    elif city and position:
-        group_name = (
-            f"{city.title()} - "
-            f"{position.title()} Community"
-        )
-
-    elif city:
-        group_name = f"{city.title()} Community"
-
-    elif country and interest:
-        group_name = (
-            f"{country.title()} - "
-            f"{interest.title()} Community"
-        )
-
-    elif interest:
-        group_name = f"{interest.title()} Community"
-
-    elif course:
-        group_name = f"{course.title()} Community"
-
-    elif position:
-        group_name = f"{position.title()} Community"
-
-    elif level:
-        group_name = f"{level.title()} Community"
-
-    else:
-        group_name = "General Community"
-
-    # ---------------------------------------------------------
-    # 6. Check if generated group already exists
-    # ---------------------------------------------------------
+    # --------------------------------------------------------
+    # 6. Check whether this generated group already exists
+    # --------------------------------------------------------
+    #
+    # The name is NOT enough to determine an exact match.
+    # We therefore first try the generated name.
+    # --------------------------------------------------------
 
     new_group = (
         db.query(Group)
-        .filter(Group.name == group_name)
+        .filter(
+            Group.name == group_name,
+            Group.is_active.is_(True),
+        )
         .first()
     )
 
-    # If it already exists, use it
     if not new_group:
+
+        # ----------------------------------------------------
+        # Create group
+        # ----------------------------------------------------
 
         new_group = Group(
             name=group_name,
             description=(
-                "Automatically created group "
-                "based on user profile."
+                "Automatically created based "
+                "on user profile attributes."
             ),
             is_active=True,
         )
 
         db.add(new_group)
 
-        # Flush so new_group.id becomes available
+        # Get generated ID without committing yet.
         db.flush()
 
-    # ---------------------------------------------------------
-    # 7. Assign user to the newly selected group
-    # ---------------------------------------------------------
+        # ----------------------------------------------------
+        # Create rules for the new group
+        # ----------------------------------------------------
+
+        for field, value in grouping_data.items():
+
+            rule = GroupRule(
+                group_id=new_group.id,
+                field=field,
+                operator="equals",
+                value=value,
+                is_active=True,
+            )
+
+            db.add(rule)
+
+    # --------------------------------------------------------
+    # 7. Assign user to newly created/found group
+    # --------------------------------------------------------
 
     existing_membership = (
         db.query(UserGroupMembership)
@@ -212,9 +331,9 @@ def allocate_user_to_groups(
 
         db.add(membership)
 
-    # ---------------------------------------------------------
-    # 8. Commit everything
-    # ---------------------------------------------------------
+    # --------------------------------------------------------
+    # 8. Commit
+    # --------------------------------------------------------
 
     db.commit()
 
