@@ -3,24 +3,29 @@ import os
 import json
 import time
 from app.logging_config import setup_logging, logger
+from app.service.assign_group_engine import allocate_user_to_groups
+from app.auth_service_db import get_db_global
 
 # Setup logging for the worker
 setup_logging()
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://user:password@192.168.0.100:5672/")
 QUEUE_NAME = "post_profile_submission"
+authdb = next(get_db_global())
 
 def callback(ch, method, properties, body):
     try:
         message = json.loads(body)
         task_name = message.get("task", "unknown")
         data = message.get("raw_data", {})
+        user_id = message.get("user_id", "")
         
         logger.info(f"Worker received task: {task_name}")
         logger.info(f"Processing data: {data}")
         
         # Simulate processing time
-        time.sleep(2)
+        # time.sleep(2)
+        matched_groups = allocate_user_to_groups(authdb,user_id,data)
         
         logger.info(f"Successfully finished processing task: {task_name}")
         

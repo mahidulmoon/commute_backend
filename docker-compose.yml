@@ -22,6 +22,7 @@ services:
       - ./logs:/app/logs
     environment:
       - RABBITMQ_URL=amqp://user:password@192.168.0.100:5672/
+      - AUTH_DB_URL=postgresql://user:secret@192.168.0.100:5432/auth_service?sslmode=disable
     
   
   # vidlist_ai_api_service:
