@@ -17,6 +17,7 @@ from app.database import get_db_global
 from fastapi.encoders import jsonable_encoder
 from app.models.usergroupmembership import UserGroupMembership
 from app.models.groups import Group
+from app.routers.auth.auth_validation import get_current_user
 
 
 SECRET_KEY= os.getenv("SECRET_KEY")
@@ -108,6 +109,45 @@ def user_register(user_input: user_auth_schema.RegisterUser,background_tasks: Ba
         logger.info(f"user successfully registered")
         return response.success_response("user successfully registered",{},201)
     
+    except Exception as e:
+        logger.error(str(e))
+        return response.error_response(str(e),None,400)
+
+@router.post("/verify_authentication")
+def login(db_user=Depends(get_current_user),db: Session = Depends(get_db_global)):
+    try:
+        
+        if db_user.otp_verified == 0 or db_user.otp_verified == "0":
+            logger.error(f"This user otp is not verified yet.")
+            return response.error_response("This user otp is not verified yet.",None,400)
+        
+        group_name = (
+            db.query(Group.name)
+            .join(
+                UserGroupMembership,
+                UserGroupMembership.group_id == Group.id
+            )
+            .filter(
+                UserGroupMembership.user_id == db_user.user_id
+            )
+            .scalar()
+        )
+
+        return_json = {
+            "user_data" : {
+                "email" : db_user.email,
+                "first_name" : db_user.first_name,
+                "last_name" : db_user.last_name,
+                "username" : db_user.username,
+                "id" : db_user.user_id,
+                "type" : db_user.type,
+                "language" : db_user.language,
+                "group" : group_name
+            }
+        }
+
+        return response.success_response("successfully logged in.",return_json,200)
+
     except Exception as e:
         logger.error(str(e))
         return response.error_response(str(e),None,400)
