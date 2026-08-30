@@ -12,17 +12,17 @@ services:
     networks:
       - app-network
 
-  # worker:
-  #   build: ./queue_service
-  #   container_name: rabbitmq_worker
-  #   working_dir: /app
-  #   command: python -m app.worker
-  #   volumes:
-  #     - ./queue_service:/app
-  #     - ./logs:/app/logs
-  #   environment:
-  #     - RABBITMQ_URL=amqp://user:password@192.168.0.100:5672/
-  #     - AUTH_DB_URL=postgresql://user:secret@192.168.0.100:5432/auth_service?sslmode=disable
+  worker:
+    build: ./queue_service
+    container_name: rabbitmq_worker
+    working_dir: /app
+    command: python -m app.worker
+    volumes:
+      - ./queue_service:/app
+      - ./logs:/app/logs
+    environment:
+      - RABBITMQ_URL=amqp://user:password@192.168.0.100:5672/
+      - AUTH_DB_URL=postgresql://user:secret@192.168.0.100:5432/auth_service?sslmode=disable
     
   
   post_service:
