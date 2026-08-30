@@ -8,5 +8,5 @@ router = APIRouter()
 
 
 @router.post("/create_post")
-def create_post(user_id = Depends(get_current_user)):
+def create_post(user_data = Depends(get_current_user)):
     return success_response("Post creation successful.",None,201)
