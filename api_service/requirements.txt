@@ -1,3 +1,6 @@
+aio-pika==9.5.5
+aiormq==6.8.1
+aiosmtplib==4.0.1
 annotated-types==0.7.0
 anyio==4.9.0
 attrs==25.3.0
@@ -25,9 +28,14 @@ itsdangerous==2.2.0
 jiter==0.9.0
 jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
+multidict==6.4.4
 openai==1.75.0
 openapi==2.0.0
+packaging==26.3
+pamqp==3.3.0
 passlib==1.7.4
+pika==1.4.4
+propcache==0.3.1
 psycopg2-binary==2.9.10
 pyasn1==0.4.8
 pycparser==2.22
@@ -52,3 +60,4 @@ uvicorn==0.34.2
 uvloop==0.21.0
 watchfiles==1.0.5
 websockets==15.0.1
+yarl==1.20.0

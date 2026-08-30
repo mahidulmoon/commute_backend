@@ -1,9 +1,10 @@
 from fastapi import FastAPI
-from .routers import test
-from .database import Base, engine
+from app.routers import test
+from app.database import Base, engine
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
+from app.routers.post import posts
 
 Base.metadata.create_all(bind=engine)
 
@@ -20,3 +21,4 @@ app.add_middleware(
 )
 
 app.include_router(test.router, prefix="/api")
+app.include_router(posts.router, prefix="/api/post")
