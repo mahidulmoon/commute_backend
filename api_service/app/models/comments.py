@@ -12,7 +12,7 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
-class Comment(Base):
+class CommentModel(Base):
     __tablename__ = "comments"
 
     id = Column(BigInteger, primary_key=True)

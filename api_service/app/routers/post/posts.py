@@ -4,7 +4,7 @@ from app.utils.auth_validation import get_current_user
 from app.utils.response import success_response, error_response
 from app.database import get_db_global
 from sqlalchemy.orm import Session
-from app.schema.posts import *
+from app.schema.postschema import *
 from app.models.posts import PostModel
 from fastapi.encoders import jsonable_encoder
 
