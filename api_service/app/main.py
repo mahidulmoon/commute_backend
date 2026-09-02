@@ -6,6 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import os
 from app.routers.post import posts
 from app.routers.comments import comments
+from app.routers.reaction import reaction
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,3 +25,4 @@ app.add_middleware(
 app.include_router(test.router, prefix="/api")
 app.include_router(posts.router, prefix="/api/post")
 app.include_router(comments.router, prefix="/api/comments")
+app.include_router(reaction.router, prefix="/api/reaction")

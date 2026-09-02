@@ -4,6 +4,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     UniqueConstraint,
+    String
 )
 from sqlalchemy.sql import func
 
@@ -11,7 +12,7 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
-class PostReaction(Base):
+class ReactionModel(Base):
     __tablename__ = "post_reactions"
 
     id = Column(BigInteger, primary_key=True)
@@ -21,6 +22,12 @@ class PostReaction(Base):
         ForeignKey("posts.id", ondelete="CASCADE"),
         nullable=False,
     )
+
+    reaction_type = Column(
+        String(20),
+        nullable=False,
+    )
+
 
     user_id = Column(
         BigInteger,
