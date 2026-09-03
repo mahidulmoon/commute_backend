@@ -9,11 +9,13 @@ class PostCreate(BaseModel):
         min_length=1,
         max_length=10000,
     )
+    group_id: int
 
 
 class PostResponse(BaseModel):
     id: int
     user_id: int
+    group_id: int
     content: str
     is_deleted: bool
     created_at: datetime

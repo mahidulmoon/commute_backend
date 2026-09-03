@@ -20,6 +20,7 @@ def create_post(post_data : PostCreate, user_data = Depends(get_current_user),db
         post = PostModel(
             user_id=user_data.get("id"),
             content=post_data.content,
+            group_id = post_data.group_id
         )
 
         db.add(post)

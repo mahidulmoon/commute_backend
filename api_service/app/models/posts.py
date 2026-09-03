@@ -16,6 +16,8 @@ class PostModel(Base):
 
     id = Column(BigInteger, primary_key=True)
 
+    group_id = Column(BigInteger, nullable=True)
+
     user_id = Column(
         BigInteger,
         # ForeignKey("users.id", ondelete="CASCADE"),
