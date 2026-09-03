@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from app.utils.auth_validation import get_current_user
 from app.utils.response import success_response, error_response
@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from app.schema.postschema import *
 from app.models.posts import PostModel
 from fastapi.encoders import jsonable_encoder
-
-
+from sqlalchemy import select, and_
+from typing import Optional
 
 router = APIRouter()
 
@@ -54,3 +54,38 @@ def get_my_post(user_data = Depends(get_current_user),db: Session = Depends(get_
         return success_response("Post fetched successfully.",post_response,200)
     except Exception as e:
         return error_response(str(e),None,400)
+
+
+# --- Search Endpoint ---
+@router.get("/search", response_model=MyPostsResponse)
+def search_posts(
+    q: Optional[str] = Query(default=None, description="Search term for post content"),
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=10, ge=1, le=100, description="Max number of records to return"),
+    db: Session = Depends(get_db_global)  # Replace with your actual DB session dependency
+):
+    # 1. Base query ordering by latest posts first
+    stmt = select(PostModel).order_by(PostModel.created_at.desc())
+    
+    # 2. Dynamic filters list
+    filters = []
+    
+        
+    # Text search on 'content' (case-insensitive)
+    if q:
+        filters.append(PostModel.content.ilike(f"%{q}%"))
+        
+        
+    # 3. Apply filters, pagination, and execute
+    if filters:
+        stmt = stmt.where(and_(*filters))
+        
+    stmt = stmt.offset(skip).limit(limit)
+    
+    results = db.scalars(stmt).all()
+
+    post_response = {
+        "items": jsonable_encoder(results),
+        "total": len(results),
+    }
+    return success_response("Post fetched successfully.",post_response,200)
