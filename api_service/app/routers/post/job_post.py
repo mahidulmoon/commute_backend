@@ -144,3 +144,42 @@ def archive_job(job_id: int, db: Session = Depends(get_db_global),user_data = De
     db.refresh(job)
 
     return success_response("Job Successfully archived",None,200)
+
+@router.put("/update_job_post/{job_id}")
+def update_job_post(
+    job_id: int,
+    data: JobPostCreate,
+    db: Session = Depends(get_db_global),
+    user_data=Depends(get_agent_user)
+):
+    try:
+        job = db.query(JobPost).filter(
+            JobPost.id == job_id,
+            JobPost.owner_id == user_data.get("id")
+        ).first()
+
+        if not job:
+            return error_response(
+                "Job post not found or you are not the owner.",
+                None,
+                404
+            )
+
+        job.title = data.title
+        job.description = data.description
+        job.location = data.location
+        job.employment_type = data.employment_type
+        job.salary = data.salary
+
+        db.commit()
+        db.refresh(job)
+
+        return success_response(
+            "Job post updated successfully.",
+            None,
+            200
+        )
+
+    except Exception as e:
+        db.rollback()
+        return error_response(str(e), None, 500)
