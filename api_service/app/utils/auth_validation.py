@@ -96,7 +96,6 @@ def get_agent_user(
             return user_data
 
         else:
-            print(str(e))
             raise HTTPException(
                 status_code=401,
                 detail="Invalid token For agent"
