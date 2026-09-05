@@ -9,6 +9,7 @@ from app.models.job_post import JobPost
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select, and_
 from typing import Optional
+from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/job_post",tags=["Job post"],)
 
@@ -70,3 +71,28 @@ def get_my_job_posts(user_data = Depends(get_agent_user), db: Session = Depends(
 
 
     return success_response("Job fetch successful.",jsonable_encoder(job),200)
+
+
+@router.get("/publish_job")
+def publish_job(job_id: int, db: Session = Depends(get_db_global),user_data = Depends(get_agent_user)):
+
+    job = (
+        db.query(JobPost)
+        .filter(
+            JobPost.id == job_id,
+            JobPost.owner_id == user_data.get("id"),
+        )
+        .first()
+    )
+
+    if job.status != JobStatus.DRAFT:
+
+        return error_response("Only draft jobs can be published",None,400)
+
+    job.status = JobStatus.PUBLISHED
+    job.published_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(job)
+
+    return success_response("Job Successfully Published",None,200)

@@ -24,6 +24,6 @@ app.add_middleware(
 
 app.include_router(test.router, prefix="/api")
 app.include_router(posts.router, prefix="/api/post")
-app.include_router(comments.router, prefix="/api/comments")
-app.include_router(reaction.router, prefix="/api/reaction")
-app.include_router(job_post.router, prefix="/api/job_post")
+app.include_router(comments.router, prefix="/api")
+app.include_router(reaction.router, prefix="/api")
+app.include_router(job_post.router, prefix="/api")
