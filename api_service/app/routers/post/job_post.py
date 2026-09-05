@@ -96,3 +96,51 @@ def publish_job(job_id: int, db: Session = Depends(get_db_global),user_data = De
     db.refresh(job)
 
     return success_response("Job Successfully Published",None,200)
+
+@router.get("/close_job")
+def close_job(job_id: int, db: Session = Depends(get_db_global),user_data = Depends(get_agent_user)):
+
+    job = (
+        db.query(JobPost)
+        .filter(
+            JobPost.id == job_id,
+            JobPost.owner_id == user_data.get("id"),
+        )
+        .first()
+    )
+
+    if job.status != JobStatus.PUBLISHED:
+
+        return error_response("Only draft jobs can be closeed",None,400)
+
+    job.status = JobStatus.CLOSED
+    job.closed_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(job)
+
+    return success_response("Job Successfully closeed",None,200)
+
+@router.get("/archive_job")
+def archive_job(job_id: int, db: Session = Depends(get_db_global),user_data = Depends(get_agent_user)):
+
+    job = (
+        db.query(JobPost)
+        .filter(
+            JobPost.id == job_id,
+            JobPost.owner_id == user_data.get("id"),
+        )
+        .first()
+    )
+
+    if job.status != JobStatus.CLOSED:
+
+        return error_response("Only draft jobs can be archived",None,400)
+
+    job.status = JobStatus.ARCHIVED
+    job.archived_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(job)
+
+    return success_response("Job Successfully archived",None,200)
