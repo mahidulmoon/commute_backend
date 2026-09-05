@@ -35,3 +35,38 @@ def create_job_post(data: JobPostCreate, db: Session = Depends(get_db_global),us
 
     except Exception as e:
         return error_response(str(e),None,500)
+
+@router.get("/get_job_post_by_id")
+def get_job_post_by_id(job_id: int, user_data = Depends(get_agent_user), db: Session = Depends(get_db_global)):
+
+    job = (
+        db.query(JobPost)
+        .filter(
+            JobPost.id == job_id,
+            JobPost.owner_id == user_data.get("id"),
+        )
+        .first()
+    )
+
+    if not job:
+        return error_response("Job not found",None,400)
+
+
+    return success_response("Job fetch successful.",jsonable_encoder(job),200)
+
+@router.get("/get_my_job_posts")
+def get_my_job_posts(user_data = Depends(get_agent_user), db: Session = Depends(get_db_global)):
+
+    job = (
+        db.query(JobPost)
+        .filter(
+            JobPost.owner_id == user_data.get("id"),
+        )
+        .all()
+    )
+
+    if not job:
+        return error_response("Job not found",None,400)
+
+
+    return success_response("Job fetch successful.",jsonable_encoder(job),200)
