@@ -11,6 +11,7 @@ from app.schema.commentschema import (
 )
 from app.utils.auth_validation import get_current_user
 from app.utils.response import success_response, error_response
+from app.logger import logger
 
 
 router = APIRouter(
@@ -38,6 +39,7 @@ def create_comment(
         )
 
         if not post:
+            logger.warning(f"Comment creation failed: Post {data.post_id} not found.")
             return error_response(
                 "Post not found.",
                 None,
@@ -58,6 +60,9 @@ def create_comment(
             )
 
             if not parent_comment:
+                logger.warning(
+                    f"Comment creation failed: Parent comment {data.parent_id} not found on post {data.post_id}."
+                )
                 return error_response(
                     "Parent comment not found.",
                     None,
@@ -75,6 +80,10 @@ def create_comment(
         db.commit()
         db.refresh(comment)
 
+        logger.info(
+            f"Comment {comment.id} created successfully on post {data.post_id} by user {user_id}."
+        )
+
         # response = CommentResponse.model_validate(
         #     comment
         # ).model_dump()
@@ -87,6 +96,9 @@ def create_comment(
 
     except Exception as e:
         db.rollback()
+        logger.error(
+            f"Error creating comment on post {data.post_id} by user {user_data.get('id') if user_data else 'unknown'}: {str(e)}"
+        )
 
         return error_response(
             str(e),

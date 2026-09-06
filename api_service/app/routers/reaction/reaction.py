@@ -10,6 +10,7 @@ from app.schema.reactionschema import (
 )
 from app.utils.auth_validation import get_current_user
 from app.utils.response import success_response, error_response
+from app.logger import logger
 
 
 router = APIRouter(
@@ -39,6 +40,9 @@ def add_reaction(
         reaction_type = data.reaction_type.strip().lower()
 
         if reaction_type not in ALLOWED_REACTIONS:
+            logger.warning(
+                f"Invalid reaction type '{reaction_type}' attempted by user {user_id} on post {data.post_id}."
+            )
             return error_response(
                 "Invalid reaction type.",
                 {
@@ -58,6 +62,7 @@ def add_reaction(
         )
 
         if not post:
+            logger.warning(f"Reaction failed: Post {data.post_id} not found.")
             return error_response(
                 "Post not found.",
                 None,
@@ -82,6 +87,10 @@ def add_reaction(
             db.commit()
             db.refresh(reaction)
 
+            logger.info(
+                f"Reaction updated to '{reaction_type}' on post {data.post_id} by user {user_id}."
+            )
+
             response = (
                 ReactionResponse
                 .model_validate(reaction)
@@ -105,6 +114,10 @@ def add_reaction(
         db.commit()
         db.refresh(reaction)
 
+        logger.info(
+            f"Reaction '{reaction_type}' added to post {data.post_id} by user {user_id}."
+        )
+
         # response = (
         #     ReactionResponse
         #     .model_validate(reaction)
@@ -119,6 +132,9 @@ def add_reaction(
 
     except Exception as e:
         db.rollback()
+        logger.error(
+            f"Error processing reaction on post {data.post_id} by user {user_data.get('id') if user_data else 'unknown'}: {str(e)}"
+        )
 
         return error_response(
             str(e),
