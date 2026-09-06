@@ -73,3 +73,10 @@ class GetUser(BaseModel):
     profile_pic: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UpdateUserStatusInput(BaseModel):
+    user_id: int
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)

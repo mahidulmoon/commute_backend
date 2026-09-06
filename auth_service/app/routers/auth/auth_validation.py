@@ -59,3 +59,21 @@ def get_current_user(
             status_code=401,
             detail="Invalid token"
         )
+
+
+def get_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_active or current_user.is_active == 0 or current_user.is_active == "0":
+        raise HTTPException(
+            status_code=403,
+            detail="User account is not active"
+        )
+
+    if str(current_user.type).upper() != "ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Access forbidden: Admin privileges required"
+        )
+
+    return current_user

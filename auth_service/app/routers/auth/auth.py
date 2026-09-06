@@ -17,7 +17,7 @@ from app.database import get_db_global
 from fastapi.encoders import jsonable_encoder
 from app.models.usergroupmembership import UserGroupMembership
 from app.models.groups import Group
-from app.routers.auth.auth_validation import get_current_user
+from app.routers.auth.auth_validation import get_current_user, get_admin_user
 
 
 SECRET_KEY= os.getenv("SECRET_KEY")
@@ -278,3 +278,40 @@ def forget_password_step2(user_input: user_auth_schema.ForgetPass2Input, backgro
         return response.success_response(f"otp submitted successfully.",{},201)
     except Exception as e:
         return response.error_response(str(e),str(e),400)
+
+
+@router.put("/update_user_status")
+def update_user_status(
+    status_input: user_auth_schema.UpdateUserStatusInput,
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db_global),
+):
+    try:
+        target_user = db.query(User).filter(User.user_id == status_input.user_id).first()
+        if not target_user:
+            logger.error(f"User not found with id: {status_input.user_id}")
+            return response.error_response("User not found", None, 404)
+
+        target_user.is_active = status_input.is_active
+        db.commit()
+        db.refresh(target_user)
+
+        status_text = "active" if status_input.is_active else "inactive"
+        logger.info(
+            f"Admin '{admin_user.email}' updated user '{target_user.email}' (ID: {target_user.user_id}) status to {status_text}."
+        )
+
+        return response.success_response(
+            f"User status successfully updated to {status_text}.",
+            {
+                "user_id": target_user.user_id,
+                "email": target_user.email,
+                "is_active": target_user.is_active,
+            },
+            200,
+        )
+
+    except Exception as e:
+        db.rollback()
+        logger.error(str(e))
+        return response.error_response(str(e), None, 400)
