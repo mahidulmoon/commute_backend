@@ -121,6 +121,10 @@ def verify_authentication(db_user=Depends(get_current_user),db: Session = Depend
             logger.error(f"This user otp is not verified yet.")
             return response.error_response("This user otp is not verified yet.",None,400)
         
+        if not db_user.is_active or db_user.is_active == 0 or db_user.is_active == "0":
+            logger.error(f"This user account is not active.")
+            return response.error_response("This user account is not active.",None,400)
+        
         group_name = (
             db.query(Group.name)
             .join(
@@ -163,6 +167,10 @@ def login(user_input: user_auth_schema.LoginUserInput,db: Session = Depends(get_
         if db_user.otp_verified == 0 or db_user.otp_verified == "0":
             logger.error(f"This user otp is not verified yet.")
             return response.error_response("This user otp is not verified yet.",None,400)
+        
+        if not db_user.is_active or db_user.is_active == 0 or db_user.is_active == "0":
+            logger.error(f"This user account is not active.")
+            return response.error_response("This user account is not active.",None,400)
         
         if not verify_password(user_input.password + os.getenv("SECRET_KEY"), db_user.password):
             logger.error(f"Login failed: wrong password for {user_input.email}")
