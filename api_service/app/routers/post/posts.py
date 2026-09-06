@@ -60,6 +60,35 @@ def get_my_post(user_data = Depends(get_current_user),db: Session = Depends(get_
         logger.error(f"Error fetching posts for user {user_data.get('id')}: {str(e)}")
         return error_response(str(e),None,400)
 
+@router.get("/get_my_post_by_group",response_model=MyPostsResponse)
+def get_my_post_by_group(user_data = Depends(get_current_user),db: Session = Depends(get_db_global)):
+    try:
+        if not user_data.get("group_id"):
+            logger.warning("Group is not assigned for this user yet.")
+            return error_response("Group is not assigned for this user yet.",None,400)
+        
+        posts = (
+            db.query(PostModel)
+            .filter(
+                PostModel.group_id == user_data.get("group_id"),
+                PostModel.is_deleted.is_(False),
+            )
+            .order_by(
+                PostModel.created_at.desc(),
+                PostModel.id.desc(),
+            )
+            .all()
+        )
+
+        post_response = {
+            "items": jsonable_encoder(posts),
+            "total": len(posts),
+        }
+        return success_response("Post fetched successfully.",post_response,200)
+    except Exception as e:
+        logger.error(f"Error fetching posts for user {user_data.get('id')}: {str(e)}")
+        return error_response(str(e),None,400)
+
 
 # --- Search Endpoint ---
 @router.get("/search", response_model=MyPostsResponse)
