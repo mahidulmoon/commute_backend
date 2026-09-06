@@ -125,8 +125,8 @@ def verify_authentication(db_user=Depends(get_current_user),db: Session = Depend
             logger.error(f"This user account is not active.")
             return response.error_response("This user account is not active.",None,400)
         
-        group_name = (
-            db.query(Group.name)
+        group = (
+            db.query(Group.id, Group.name)
             .join(
                 UserGroupMembership,
                 UserGroupMembership.group_id == Group.id
@@ -134,8 +134,15 @@ def verify_authentication(db_user=Depends(get_current_user),db: Session = Depend
             .filter(
                 UserGroupMembership.user_id == db_user.user_id
             )
-            .scalar()
+            .first()
         )
+
+        if group:
+            group_id = group.id
+            group_name = group.name
+        else:
+            group_id = None
+            group_name = None
 
         return_json = {
             "user_data" : {
@@ -146,7 +153,8 @@ def verify_authentication(db_user=Depends(get_current_user),db: Session = Depend
                 "id" : db_user.user_id,
                 "type" : db_user.type,
                 "language" : db_user.language,
-                "group" : group_name
+                "group" : group_name,
+                "group_id" : group_id
             }
         }
 
@@ -180,8 +188,8 @@ def login(user_input: user_auth_schema.LoginUserInput,db: Session = Depends(get_
             data={"sub": db_user.email, "user_id" : db_user.user_id},  # sub = subject (email)
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        group_name = (
-            db.query(Group.name)
+        group = (
+            db.query(Group.id, Group.name)
             .join(
                 UserGroupMembership,
                 UserGroupMembership.group_id == Group.id
@@ -189,8 +197,15 @@ def login(user_input: user_auth_schema.LoginUserInput,db: Session = Depends(get_
             .filter(
                 UserGroupMembership.user_id == db_user.user_id
             )
-            .scalar()
+            .first()
         )
+
+        if group:
+            group_id = group.id
+            group_name = group.name
+        else:
+            group_id = None
+            group_name = None
 
         return_json = {
             "access_token" : access_token,
@@ -203,7 +218,8 @@ def login(user_input: user_auth_schema.LoginUserInput,db: Session = Depends(get_
                 "id" : db_user.user_id,
                 "type" : db_user.type,
                 "language" : db_user.language,
-                "group" : group_name
+                "group" : group_name,
+                "group_id" : group_id
             }
         }
 
