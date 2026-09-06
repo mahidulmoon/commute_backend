@@ -114,7 +114,7 @@ def user_register(user_input: user_auth_schema.RegisterUser,background_tasks: Ba
         return response.error_response(str(e),None,400)
 
 @router.post("/verify_authentication")
-def login(db_user=Depends(get_current_user),db: Session = Depends(get_db_global)):
+def verify_authentication(db_user=Depends(get_current_user),db: Session = Depends(get_db_global)):
     try:
         
         if db_user.otp_verified == 0 or db_user.otp_verified == "0":
