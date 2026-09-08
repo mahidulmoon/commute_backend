@@ -5,6 +5,7 @@ import enum
 from sqlalchemy import (
     Column,
     Integer,
+    Float,
     String,
     Text,
     DateTime,
@@ -40,6 +41,10 @@ class JobPost(Base):
     description = Column(Text, nullable=False)
 
     location = Column(String(255), nullable=True)
+
+    latitude = Column(Float, nullable=True)
+
+    longitude = Column(Float, nullable=True)
 
     employment_type = Column(String(50), nullable=True)
 
