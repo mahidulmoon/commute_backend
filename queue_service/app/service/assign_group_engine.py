@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.models.groups import Group
 from app.models.grouprule import GroupRule
 from app.models.usergroupmembership import UserGroupMembership
+from app.models.wo_user import User
+from app.logging_config import logger
 
 
 # ============================================================
@@ -10,15 +12,11 @@ from app.models.usergroupmembership import UserGroupMembership
 # ============================================================
 # Add/remove fields here whenever the business requirement changes.
 #
-# Example:
-#     "company",
-#     "position",
-#     "hobbies",
-#
-# can simply be added later.
+# Postcode is given first priority when present in the user data.
 # ============================================================
 
 GROUPING_FIELDS = [
+    "postcode",
     "local_area",
     "current_city",
     "interest",
@@ -26,6 +24,7 @@ GROUPING_FIELDS = [
     "course",
     "level",
 ]
+
 
 
 # ============================================================
@@ -92,6 +91,7 @@ def create_group_name(grouping_data: dict) -> str:
     Example:
 
         {
+            "postcode": "1212",
             "local_area": "block d",
             "current_city": "dhaka",
             "interest": "cricket",
@@ -102,14 +102,14 @@ def create_group_name(grouping_data: dict) -> str:
 
     becomes something like:
 
-        Block D - Dhaka - Cricket Community
+        Postcode 1212 - Block D - Dhaka - Cricket Community
     """
 
     name_parts = []
 
-    # Only use the most useful fields for the human-readable name.
-    # All configured fields can still participate in the rules.
+    # Postcode is top priority for community naming when present.
     name_fields = [
+        "postcode",
         "local_area",
         "current_city",
         "interest",
@@ -120,7 +120,10 @@ def create_group_name(grouping_data: dict) -> str:
         value = grouping_data.get(field)
 
         if value:
-            name_parts.append(value.title())
+            if field == "postcode":
+                name_parts.append(f"Postcode {value.upper()}")
+            else:
+                name_parts.append(value.title())
 
     if name_parts:
         return " - ".join(name_parts) + " Community"
@@ -142,6 +145,12 @@ def allocate_user_to_groups(
 
     Logic:
 
+    0. Look up user's postcode from User record if not in profile.
+       - If postcode is present, it is given FIRST PRIORITY:
+         - Match only groups that have a rule for 'postcode'.
+         - If no existing postcode group matches, create a new
+           group prioritized with postcode in its rules and name.
+       - If postcode is not present, perform standard grouping as-is.
     1. Extract configured grouping fields.
     2. Check all active groups.
     3. Match user's profile against group rules.
@@ -151,6 +160,48 @@ def allocate_user_to_groups(
          - create rules based on profile
          - assign user to the new group
     """
+
+    # --------------------------------------------------------
+    # 0. Check postcode priority
+    # --------------------------------------------------------
+
+    # The worker reuses a single long-lived DB session. Expire all cached
+    # objects so we always read the freshest data (including postcode that
+    # was just saved by the auth service before publishing this message).
+    db.expire_all()
+
+    user_id_int = int(user_id) if user_id else 0
+    user = (
+        db.query(User).filter(User.user_id == user_id_int).first()
+        if user_id_int
+        else None
+    )
+
+    # Use postcode from profile (raw_data) first — it's guaranteed to be
+    # present because CompleteProfileSchema now makes it required.
+    # Fall back to users.postcode from DB in case of older messages.
+    raw_postcode = profile.get("postcode") or (user.postcode if user else None)
+    if raw_postcode:
+        profile["postcode"] = raw_postcode
+
+    user_postcode = normalize(profile.get("postcode"))
+    has_postcode = bool(user_postcode)
+
+    logger.info(
+        f"User {user_id} | profile keys received: {list(profile.keys())}"
+    )
+    logger.info(
+        f"User {user_id} | raw_postcode resolved to: '{raw_postcode}'"
+    )
+
+    if has_postcode:
+        logger.info(
+            f"User {user_id} has postcode '{user_postcode}'. Prioritizing postcode in group allocation."
+        )
+    else:
+        logger.info(
+            f"User {user_id} has no postcode. Performing standard group allocation."
+        )
 
     # --------------------------------------------------------
     # 1. Extract only fields configured for grouping
@@ -208,6 +259,18 @@ def allocate_user_to_groups(
             continue
 
         # ----------------------------------------------------
+        # First priority for postcode:
+        # If user has a postcode, only match groups that have
+        # an active rule for 'postcode'.
+        # ----------------------------------------------------
+        if has_postcode:
+            group_has_postcode_rule = any(
+                rule.field == "postcode" for rule in relevant_rules
+            )
+            if not group_has_postcode_rule:
+                continue
+
+        # ----------------------------------------------------
         # Every rule must match
         # ----------------------------------------------------
 
@@ -228,7 +291,7 @@ def allocate_user_to_groups(
             existing_membership = (
                 db.query(UserGroupMembership)
                 .filter(
-                    UserGroupMembership.user_id == user_id,
+                    UserGroupMembership.user_id == user_id_int,
                     UserGroupMembership.group_id == group.id,
                 )
                 .first()
@@ -238,7 +301,7 @@ def allocate_user_to_groups(
                 continue
 
             membership = UserGroupMembership(
-                user_id=user_id,
+                user_id=user_id_int,
                 group_id=group.id,
                 allocation_type="automatic",
             )
@@ -247,20 +310,24 @@ def allocate_user_to_groups(
 
         db.commit()
 
+        logger.info(
+            f"User {user_id} assigned to existing matched groups: {[g.name for g in matched_groups]}"
+        )
         return matched_groups
 
     # ========================================================
-    # 5. NO MATCHING GROUP
+    # 5. NO MATCHING GROUP -> CREATE NEW GROUP
     # ========================================================
+
+    logger.info(
+        f"User {user_id} | No matching group found. "
+        f"Creating new group from grouping_data: {grouping_data}"
+    )
 
     group_name = create_group_name(grouping_data)
 
     # --------------------------------------------------------
     # 6. Check whether this generated group already exists
-    # --------------------------------------------------------
-    #
-    # The name is NOT enough to determine an exact match.
-    # We therefore first try the generated name.
     # --------------------------------------------------------
 
     new_group = (
@@ -281,8 +348,9 @@ def allocate_user_to_groups(
         new_group = Group(
             name=group_name,
             description=(
-                "Automatically created based "
-                "on user profile attributes."
+                "Automatically created based on user postcode and profile attributes."
+                if has_postcode
+                else "Automatically created based on user profile attributes."
             ),
             is_active=True,
         )
@@ -315,7 +383,7 @@ def allocate_user_to_groups(
     existing_membership = (
         db.query(UserGroupMembership)
         .filter(
-            UserGroupMembership.user_id == user_id,
+            UserGroupMembership.user_id == user_id_int,
             UserGroupMembership.group_id == new_group.id,
         )
         .first()
@@ -324,7 +392,7 @@ def allocate_user_to_groups(
     if not existing_membership:
 
         membership = UserGroupMembership(
-            user_id=user_id,
+            user_id=user_id_int,
             group_id=new_group.id,
             allocation_type="automatic",
         )
@@ -337,4 +405,7 @@ def allocate_user_to_groups(
 
     db.commit()
 
+    logger.info(
+        f"User {user_id} assigned to newly created/found group: {new_group.name}"
+    )
     return [new_group]

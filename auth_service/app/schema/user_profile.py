@@ -5,6 +5,9 @@ from pydantic import BaseModel, ConfigDict
 
 
 class CompleteProfileSchema(BaseModel):
+    # Postcode is required for group allocation
+    postcode: str
+
     address: Optional[str] = None
     local_area: Optional[str] = None
     dob: Optional[date] = None
