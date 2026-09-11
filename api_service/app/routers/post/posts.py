@@ -36,7 +36,11 @@ def create_post(post_data : PostCreate, user_data = Depends(get_current_user),db
 
 
 @router.get("/get_my_post",response_model=MyPostsResponse)
-def get_my_post(user_data = Depends(get_current_user),db: Session = Depends(get_db_global)):
+def get_my_post(
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=10, ge=1, le=100, description="Max number of records to return"),
+    user_data = Depends(get_current_user),db: Session = Depends(get_db_global)
+    ):
     try:
         posts = (
             db.query(PostModel)
@@ -47,7 +51,7 @@ def get_my_post(user_data = Depends(get_current_user),db: Session = Depends(get_
             .order_by(
                 PostModel.created_at.desc(),
                 PostModel.id.desc(),
-            )
+            ).offset(skip).limit(limit)
             .all()
         )
 
@@ -61,7 +65,11 @@ def get_my_post(user_data = Depends(get_current_user),db: Session = Depends(get_
         return error_response(str(e),None,400)
 
 @router.get("/get_my_post_by_group",response_model=MyPostsResponse)
-def get_my_post_by_group(user_data = Depends(get_current_user),db: Session = Depends(get_db_global)):
+def get_my_post_by_group(
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=10, ge=1, le=100, description="Max number of records to return"),
+    user_data = Depends(get_current_user),db: Session = Depends(get_db_global)
+    ):
     try:
         if not user_data.get("group_id"):
             logger.warning("Group is not assigned for this user yet.")
@@ -76,7 +84,7 @@ def get_my_post_by_group(user_data = Depends(get_current_user),db: Session = Dep
             .order_by(
                 PostModel.created_at.desc(),
                 PostModel.id.desc(),
-            )
+            ).offset(skip).limit(limit)
             .all()
         )
 

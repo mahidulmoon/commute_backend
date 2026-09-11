@@ -90,13 +90,16 @@ def get_job_post_by_id(job_id: int, user_data = Depends(get_agent_user), db: Ses
         return error_response(str(e),None,500)
 
 @router.get("/get_my_job_posts")
-def get_my_job_posts(user_data = Depends(get_agent_user), db: Session = Depends(get_db_global)):
+def get_my_job_posts(
+    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=10, ge=1, le=100, description="Max number of records to return"),
+    user_data = Depends(get_agent_user), db: Session = Depends(get_db_global)):
     try:
         job = (
             db.query(JobPost)
             .filter(
                 JobPost.owner_id == user_data.get("id"),
-            )
+            ).offset(skip).limit(limit)
             .all()
         )
 
