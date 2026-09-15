@@ -36,6 +36,17 @@ services:
     networks:
       - app-network
 
+  chat_service:
+    build: ./chat_service
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./chat_service:/app
+    env_file:
+      - ./chat_service/.env
+    networks:
+      - app-network
+
   # db_auth:
   #   image: postgres:15
   #   ports:
