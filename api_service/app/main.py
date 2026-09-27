@@ -7,6 +7,7 @@ import os
 from app.routers.post import posts, job_post
 from app.routers.comments import comments
 from app.routers.reaction import reaction
+from app.routers.events import events
 
 Base.metadata.create_all(bind=engine)
 
@@ -27,3 +28,4 @@ app.include_router(posts.router, prefix="/api/post")
 app.include_router(comments.router, prefix="/api")
 app.include_router(reaction.router, prefix="/api")
 app.include_router(job_post.router, prefix="/api")
+app.include_router(events.router, prefix="/api/events", tags=["Events"])
