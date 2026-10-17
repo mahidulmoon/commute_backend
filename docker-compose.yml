@@ -47,6 +47,17 @@ services:
     networks:
       - app-network
 
+  marketplace_service:
+    build: ./marketplace_service
+    ports:
+      - "8084:8084"
+    volumes:
+      - ./marketplace_service:/app
+    env_file:
+      - ./marketplace_service/.env
+    networks:
+      - app-network
+
   # db_auth:
   #   image: postgres:15
   #   ports:
