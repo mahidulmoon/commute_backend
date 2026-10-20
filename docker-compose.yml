@@ -58,6 +58,17 @@ services:
     networks:
       - app-network
 
+  notification_service:
+    build: ./notification_service
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./notification_service:/app
+    env_file:
+      - ./notification_service/.env
+    networks:
+      - app-network
+
   # db_auth:
   #   image: postgres:15
   #   ports:

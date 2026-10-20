@@ -11,6 +11,7 @@ from app.schema.commentschema import (
 )
 from app.utils.auth_validation import get_current_user
 from app.utils.response import success_response, error_response
+from app.utils.notification_client import send_notification
 from app.logger import logger
 
 
@@ -84,9 +85,19 @@ def create_comment(
             f"Comment {comment.id} created successfully on post {data.post_id} by user {user_id}."
         )
 
-        # response = CommentResponse.model_validate(
-        #     comment
-        # ).model_dump()
+        # Notify post owner if commenter is someone else
+        if post.user_id != user_id:
+            actor_name = user_data.get("username") or f"User {user_id}"
+            comment_snippet = data.content[:60] + "..." if len(data.content) > 60 else data.content
+            send_notification(
+                recipient_id=post.user_id,
+                actor_id=user_id,
+                notif_type="post_comment",
+                title="New Comment on Your Post",
+                body=f"{actor_name} commented: \"{comment_snippet}\"",
+                link=f"/posts/{data.post_id}",
+                data={"post_id": data.post_id, "comment_id": comment.id},
+            )
 
         return success_response(
             "Comment created successfully.",

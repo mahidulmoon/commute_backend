@@ -10,6 +10,7 @@ from app.schema.reactionschema import (
 )
 from app.utils.auth_validation import get_current_user
 from app.utils.response import success_response, error_response
+from app.utils.notification_client import send_notification
 from app.logger import logger
 
 
@@ -118,11 +119,18 @@ def add_reaction(
             f"Reaction '{reaction_type}' added to post {data.post_id} by user {user_id}."
         )
 
-        # response = (
-        #     ReactionResponse
-        #     .model_validate(reaction)
-        #     .model_dump()
-        # )
+        # Notify post owner if reactor is someone else
+        if post.user_id != user_id:
+            actor_name = user_data.get("username") or f"User {user_id}"
+            send_notification(
+                recipient_id=post.user_id,
+                actor_id=user_id,
+                notif_type="post_reaction",
+                title="New Reaction on Your Post",
+                body=f"{actor_name} reacted '{reaction_type}' to your post.",
+                link=f"/posts/{data.post_id}",
+                data={"post_id": data.post_id, "reaction_type": reaction_type},
+            )
 
         return success_response(
             "Reaction added successfully.",
