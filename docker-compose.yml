@@ -69,6 +69,18 @@ services:
     networks:
       - app-network
 
+  upload_service:
+    build: ./upload_service
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./upload_service:/app
+      # - uploads_data:/app/uploads
+    env_file:
+      - ./upload_service/.env
+    networks:
+      - app-network
+
   # db_auth:
   #   image: postgres:15
   #   ports:
@@ -87,6 +99,7 @@ volumes:
   pgdata_auth:
   pgdata_api:
   esdata:
+  uploads_data:
 
 networks:
   app-network:

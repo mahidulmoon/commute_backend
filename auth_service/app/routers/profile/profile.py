@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel as PydanticBaseModel
 from app.database import SessionLocal
 from app.utils import response
 from app.models.country import Country
@@ -13,6 +14,10 @@ from app.models.user_profile import CompleteProfileModel
 from app.models.wo_user import User
 from app.producer_push.rabbitmq import producer
 import json
+
+
+class UpdateProfilePicSchema(PydanticBaseModel):
+    profile_pic_url: str
 
 
 router = APIRouter()
@@ -117,3 +122,40 @@ def complete_user_profile_submission(
             None,
             400,
         )
+
+
+# ---------------------------------------------------------------------------
+# PUT /update_profile_pic
+# Receives the URL returned by upload_service and stores it in users.profile_pic
+# ---------------------------------------------------------------------------
+@router.put("/update_profile_pic")
+def update_profile_pic(
+    payload: UpdateProfilePicSchema,
+    request_user=Depends(get_current_user),
+    db: Session = Depends(get_db_global),
+):
+    try:
+        user_record = db.query(User).filter(
+            User.user_id == request_user.user_id
+        ).first()
+
+        if not user_record:
+            return response.error_response("User not found.", None, 404)
+
+        user_record.profile_pic = payload.profile_pic_url
+        db.commit()
+
+        logger.info(
+            f"profile_pic updated for user_id={request_user.user_id}: {payload.profile_pic_url}"
+        )
+
+        return response.success_response(
+            "Profile picture updated successfully.",
+            {"profile_pic": payload.profile_pic_url},
+            200,
+        )
+
+    except Exception as e:
+        db.rollback()
+        logger.error(str(e))
+        return response.error_response(str(e), None, 400)
