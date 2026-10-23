@@ -6,3 +6,4 @@ __pycache__
 .idea
 .DS_Store
 uploads/
+.env.deployment

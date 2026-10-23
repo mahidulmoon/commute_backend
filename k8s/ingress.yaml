@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fast-api-micro-ingress
+  namespace: fast-api-micro
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /api/auth/
+        pathType: Prefix
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 8000
+      - path: /api/post/
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 8082
+      - path: /api/chat/
+        pathType: Prefix
+        backend:
+          service:
+            name: chat-service
+            port:
+              number: 8083
+      - path: /api/marketplace/
+        pathType: Prefix
+        backend:
+          service:
+            name: marketplace-service
+            port:
+              number: 8084
+      - path: /api/notification/
+        pathType: Prefix
+        backend:
+          service:
+            name: notification-service
+            port:
+              number: 8085
+      - path: /api/upload/
+        pathType: Prefix
+        backend:
+          service:
+            name: upload-service
+            port:
+              number: 8086
