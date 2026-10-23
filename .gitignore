@@ -1,9 +1,7 @@
 *.log
 *.pyc
 __pycache__
-.env
 *.pyc
 .idea
 .DS_Store
 uploads/
-.env.deployment
